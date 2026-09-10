@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release-notes:
+    name: Generate release notes
+    runs-on: ubuntu-22.04
+    outputs:
+      content: ${{ steps.git-cliff.outputs.content }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog for this tag
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: notes.md
+
+      - name: Create release with notes
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        with:
+          body: ${{ steps.git-cliff.outputs.content }}
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: release-notes
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+            use_cross: true
+          - target: aarch64-apple-darwin
+            os: macos-14
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross (aarch64 Linux only)
+        if: matrix.use_cross
+        run: cargo install cross --locked
+
+      - name: Build
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package
+        shell: bash
+        run: |
+          BINARY=faf
+          TARGET=${{ matrix.target }}
+          VERSION=${GITHUB_REF_NAME}
+
+          # Map Rust target -> clean name
+          case "$TARGET" in
+            x86_64-unknown-linux-gnu)
+              NAME="linux-x86_64"
+              ;;
+            aarch64-unknown-linux-gnu)
+              NAME="linux-arm64"
+              ;;
+            x86_64-apple-darwin)
+              NAME="macos-x86_64"
+              ;;
+            aarch64-apple-darwin)
+              NAME="macos-arm64"
+              ;;
+            *)
+              NAME="$TARGET"
+              ;;
+          esac
+
+          ARCHIVE="faf-${NAME}-${VERSION}.tar.gz"
+
+          cp target/${TARGET}/release/${BINARY} ${BINARY}
+
+          if command -v strip >/dev/null 2>&1; then
+            strip ${BINARY} || true
+          fi
+
+          tar czf ${ARCHIVE} ${BINARY}
+
+          echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        with:
+          files: ${{ env.ARCHIVE }}
+          fail_on_unmatched_files: true

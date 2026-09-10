@@ -1,0 +1,39 @@
+[package]
+name = "fafind"
+version = "3.0.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Fast parallel filesystem search by filename (installs the `faf` binary)"
+license = "MIT"
+repository = "https://github.com/eof0/faf"
+homepage = "https://github.com/eof0/faf"
+documentation = "https://docs.rs/fafind"
+readme = "README.md"
+
+keywords = ["cli", "search", "filesystem", "find", "fast"]
+categories = ["command-line-utilities"]
+
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+ignore = "0.4"
+memchr = "2.7"
+
+[[bin]]
+name = "faf"
+path = "src/bin/faf.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+
+strip = true

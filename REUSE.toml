@@ -1,0 +1,35 @@
+version = 1
+
+# Software source — MIT
+[[annotations]]
+path = [
+    "src/**",
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "LICENSE",
+    "LICENSES/**",
+]
+SPDX-FileCopyrightText = "Ryan Wilson <ryan@ryanwilson.io>"
+SPDX-License-Identifier = "MIT"
+
+# Project infrastructure — MIT
+[[annotations]]
+path = [
+    ".github/**",
+    ".gitignore",
+    "RELEASE.md",
+]
+SPDX-FileCopyrightText = "Ryan Wilson <ryan@ryanwilson.io>"
+SPDX-License-Identifier = "MIT"
+
+# AUR packaging — 0BSD per Arch packaging guidelines
+[[annotations]]
+path = [
+    "packaging/aur/PKGBUILD",
+    "packaging/aur/.SRCINFO",
+    "packaging/aur/REUSE.toml",
+    "packaging/aur/LICENSE",
+]
+SPDX-FileCopyrightText = "Ryan Wilson <ryan@ryanwilson.io>"
+SPDX-License-Identifier = "0BSD"
