@@ -15,10 +15,10 @@ categories = ["command-line-utilities"]
 
 include = [
     "src/**",
-    "Cargo.toml",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE"
+    "/Cargo.toml",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE"
 ]
 
 [dependencies]
