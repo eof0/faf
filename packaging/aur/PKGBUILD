@@ -21,8 +21,8 @@ source_aarch64=(
   "faf-arm64-${pkgver}.tar.gz::${_url}/faf-linux-arm64-v${pkgver}.tar.gz"
 )
 sha256sums=('f500e1e4b3d5c32caedbd5d5d6ff1a92b683cd0bc3a41053cfd4fa0b51a854c1')
-sha256sums_x86_64=('0179554cdcc2badb24c60c3d69d799d2a03a7cf73a8fd8b4c893acc2257f242c')
-sha256sums_aarch64=('df9130af8e9da9398aa1c4deee37b87b71de6c5008cbd1f720cf83d55a9587ae')
+sha256sums_x86_64=('0760ae26a8d01830995f67a7f6d5c6b124b25b2366f52ca870a1a01ba8f1c3de')
+sha256sums_aarch64=('30f45ca977138f7e09b1ad024700bf3db0cfbdd2694106a2f0355334e7b6aa74')
 
 package() {
   install -Dm755 faf "${pkgdir}/usr/bin/faf"
