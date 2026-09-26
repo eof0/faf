@@ -1,6 +1,6 @@
 # Maintainer: Ryan Wilson <ryan@ryanwilson.io>
 pkgname=faf-bin
-pkgver=3.0.0
+pkgver=3.1.0
 pkgrel=1
 pkgdesc="Fast parallel filesystem search by filename"
 arch=('x86_64' 'aarch64')
