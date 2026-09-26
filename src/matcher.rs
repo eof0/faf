@@ -5,6 +5,7 @@ use crate::config::MatchMode;
 /// NAME_MAX on Linux, macOS and the BSDs, plus one.
 pub const NAME_BUF: usize = 256;
 
+#[derive(Clone)]
 pub struct MatchTarget {
     /// Prebuilt searcher over the normalized query. Building one per call
     /// costs more than the search itself on short filenames.
@@ -51,7 +52,7 @@ impl MatchTarget {
     }
 
     #[inline(always)]
-    fn equals(&self, name: &[u8]) -> bool {
+    pub(crate) fn equals(&self, name: &[u8]) -> bool {
         let needle = self.needle();
         if !self.ignore_case {
             return name == needle;
@@ -63,7 +64,7 @@ impl MatchTarget {
     }
 
     #[inline(always)]
-    fn contains(&self, name: &[u8]) -> bool {
+    pub(crate) fn contains(&self, name: &[u8]) -> bool {
         if !self.ignore_case {
             return self.finder.find(name).is_some();
         }

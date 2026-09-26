@@ -156,14 +156,42 @@ Non-ASCII names and queries fall back to full Unicode case folding.
 faf --max-depth 3 main .
 ~~~
 
-### exclude directories
+### exclude (`-x`)
 
 ~~~bash
-faf --exclude target,node_modules main .
+faf main ~ -x target,node_modules
+faf -f main ~ -x "~/work/typescript,~/work/c/,main.lua,main.cpp"
 ~~~
 
-Matches directory names anywhere below the root.
-The root itself is never excluded.
+Values are comma separated.
+The flag may repeat and may follow the root.
+A value with a `/`, or starting with `~`, is a path.
+Anything else is an exact filename and excludes files and directories with that name.
+A path names one entry under the root, and an excluded directory is pruned.
+`~` expands through `HOME`.
+Relative paths resolve from the current directory, then from the root.
+The root itself is never excluded, and symlinks are not followed.
+
+Modifiers narrow a group of values:
+
+| Flag | Long form | Meaning |
+|------|-----------|---------|
+| `-xf` | `--exclude-file` | files only |
+| `-xd` | `--exclude-dir` | directories only |
+| `-xp` | `--exclude-precise` | exact name, the same as `-x` for names |
+| `-xs` | `--exclude-substr` | substring of the name, or of the path below the root when the value has a `/` |
+
+~~~bash
+faf main ~ -xd build          # prune directories named build, keep files named build
+faf -s main ~ -xs header,/c/  # drop names containing header and paths containing /c/
+faf main ~ -xfs .bak          # files only, by substring
+~~~
+
+`-xs` paths are matched below the root with a leading slash, so `/c/` matches `./c/main.c` and `./x/c/y` but never the root itself.
+Trailing slashes are kept, so `build/` does not match `builder/`.
+Modifier letters stack in any order and cluster after other short flags: `-xsf`, `-xdp`, and `-sxd` all work.
+Only a tail made entirely of `f`, `d`, `p`, and `s` counts as modifiers, so `-xfoo` excludes the name `foo` and `-x f` needs the space.
+Name values honor `-i`.
 
 ### respect .gitignore
 
@@ -193,6 +221,7 @@ Disables color.
 ### verbose (`-v`)
 
 Prints `[SCAN]`, `[SKIP]`, and `[ERROR]` lines to stderr.
+Each path value given to `-x` gets an `[EXCLUDE]` line showing what it resolved to, whether it exists, and whether it was ignored for being the root or outside it.
 Matches still go to stdout, but as `[MATCH] <path>` lines with color and `-0` ignored.
 Use it to trace a walk, not to feed another program.
 
@@ -210,6 +239,7 @@ Suppresses the summary line on stderr.
 - Non-ASCII names take a cold Unicode path only when `-i` needs it.
 - Each worker batches output into a private buffer and writes it in 64 KiB chunks, whether stdout is a terminal or a pipe.
 - When the reader closes the pipe, as in `faf -s foo / | head`, the walk stops instead of scanning the rest of the disk.
+- Exclude rules are grouped by kind and by entry type, so an entry pays one boolean load when no rule applies to it, and path rules compare only the part of the path below the root.
 
 ---
 

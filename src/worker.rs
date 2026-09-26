@@ -84,13 +84,32 @@ fn flush_stdout(buf: &mut Vec<u8>) -> bool {
     ok
 }
 
+/// The root path comes from the user and may be `.`, `/` or slash-terminated,
+/// so it takes the general `Path::file_name()` route. Runs once per walk.
+#[cold]
+#[inline(never)]
+pub fn process_root(path: &Path, is_dir: bool, state: &mut WorkerState) -> bool {
+    match path.file_name() {
+        Some(name) => process_entry(path, Some(name.as_bytes()), is_dir, state),
+        None => {
+            state.scanned += 1;
+            true
+        }
+    }
+}
+
 /// Hot path, called for every entry. Returns false when the walk should stop.
 ///
-/// The root path comes from the user and may be `.`, `/` or slash-terminated,
-/// so it takes the general `Path::file_name()` route. Every other entry name
-/// comes from `readdir` and is read with a single reverse byte scan.
+/// `name` is the final component of `path` when the caller already has it.
+/// Otherwise it is read with a single reverse byte scan, and only once the
+/// entry has passed the type filter.
 #[inline(always)]
-pub fn process_entry(path: &Path, is_dir: bool, is_root: bool, state: &mut WorkerState) -> bool {
+pub fn process_entry(
+    path: &Path,
+    name: Option<&[u8]>,
+    is_dir: bool,
+    state: &mut WorkerState,
+) -> bool {
     let cfg = &*state.config;
     state.scanned += 1;
 
@@ -100,14 +119,7 @@ pub fn process_entry(path: &Path, is_dir: bool, is_root: bool, state: &mut Worke
         _ => {}
     }
 
-    let name = if is_root {
-        match path.file_name() {
-            Some(f) => f.as_bytes(),
-            None => return true,
-        }
-    } else {
-        entry_file_name_bytes(path)
-    };
+    let name = name.unwrap_or_else(|| entry_file_name_bytes(path));
 
     if cfg.verbose {
         verbose_scan(path);

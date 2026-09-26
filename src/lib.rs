@@ -1,8 +1,27 @@
+//! Fast parallel filesystem search by filename.
+//!
+//! This crate is the implementation behind the `faf` command line tool.
+//! It walks a directory tree on every core, matches raw filename bytes
+//! against a query, and streams the matching paths to stdout.
+//!
+//! The crate exposes a single entry point, [`run`], which parses the
+//! process arguments and runs the search. The binary is a one-line wrapper
+//! around it.
+//!
+//! ```no_run
+//! fafind::run();
+//! ```
+//!
+//! Unix only. The build fails on other platforms by design.
+
+#![forbid(unsafe_code)]
+
 #[cfg(not(unix))]
 compile_error!("faf only supports Unix");
 
 mod cli;
 mod config;
+mod exclude;
 mod matcher;
 mod util;
 mod walker;
@@ -15,15 +34,28 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use cli::{Cli, ColorMode};
+use cli::{Cli, ColorMode, rewrite_args};
 use config::{EntryType, MatchMode, WalkConfig};
+use exclude::ExcludeSet;
 use matcher::MatchTarget;
 use walker::walk_parallel;
 use worker::Totals;
 
-pub fn run() {
-    let cli = Cli::parse();
+/// Parses the process arguments, runs the search, and exits.
+///
+/// Matches go to stdout and a summary line goes to stderr. The process
+/// exits with `0` when at least one match was found, `1` when none was,
+/// and `2` on invalid usage. This function never returns.
+pub fn run() -> ! {
     let prog = "faf";
+    let args = match rewrite_args(std::env::args_os()) {
+        Ok(args) => args,
+        Err(msg) => {
+            eprintln!("{prog}: {msg}");
+            std::process::exit(2);
+        }
+    };
+    let mut cli = Cli::parse_from(args);
 
     if cli.substr && cli.precise {
         eprintln!("error: cannot use -s and -p together");
@@ -73,7 +105,7 @@ pub fn run() {
         (None, None) => EntryType::Any,
     };
 
-    let root = cli.root.unwrap_or_else(|| PathBuf::from("/"));
+    let root = cli.root.take().unwrap_or_else(|| PathBuf::from("/"));
 
     let color = !cli.null
         && match cli.color {
@@ -82,14 +114,22 @@ pub fn run() {
             ColorMode::Auto => std::io::stdout().is_terminal(),
         };
 
+    let home = std::env::var_os("HOME");
+    let exclude = ExcludeSet::build(
+        cli.exclude_specs(),
+        &root,
+        home.as_deref(),
+        cli.ignore_case,
+        cli.verbose,
+    );
+    for note in &exclude.notes {
+        eprintln!("{note}");
+    }
+
     let config = Arc::new(WalkConfig {
         target: MatchTarget::new(&cli.target, mode, cli.ignore_case),
         max_depth: cli.max_depth,
-        exclude: cli
-            .exclude
-            .into_iter()
-            .map(|s| s.into_bytes().into_boxed_slice())
-            .collect(),
+        exclude,
         entry_type,
         null_terminate: cli.null,
         gitignore: cli.gitignore,

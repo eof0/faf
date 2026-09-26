@@ -6,7 +6,7 @@ use ignore::{WalkBuilder, WalkState};
 use crate::CacheWriter;
 use crate::config::WalkConfig;
 use crate::util::entry_file_name_bytes;
-use crate::worker::{Totals, WorkerState, process_entry};
+use crate::worker::{Totals, WorkerState, process_entry, process_root};
 
 /// Work-stealing parallel walk. Workers stream matches to stdout as found.
 pub fn walk_parallel(
@@ -47,24 +47,39 @@ pub fn walk_parallel(
             let is_dir = e.file_type().is_some_and(|t| t.is_dir());
             let is_root = e.depth() == 0;
 
-            // The root was named explicitly, so --exclude never applies to it.
-            if is_dir && !is_root && excluded(path, &state.config.exclude) {
-                if state.config.verbose {
-                    eprintln!("[SKIP] {}", path.display());
-                }
-                return WalkState::Skip;
+            // The root was named explicitly, so -x never applies to it.
+            if is_root {
+                return if process_root(path, is_dir, &mut state) {
+                    WalkState::Continue
+                } else {
+                    WalkState::Quit
+                };
             }
-            if process_entry(path, is_dir, is_root, &mut state) {
+
+            // Every other entry name comes from `readdir` and is read with
+            // one reverse byte scan, here only when a rule needs it.
+            let exclude = &state.config.exclude;
+            let name = if exclude.has_rules(is_dir) {
+                let name = entry_file_name_bytes(path);
+                if exclude.excludes(path, name, is_dir) {
+                    if state.config.verbose {
+                        eprintln!("[SKIP] {}", path.display());
+                    }
+                    return if is_dir {
+                        WalkState::Skip
+                    } else {
+                        WalkState::Continue
+                    };
+                }
+                Some(name)
+            } else {
+                None
+            };
+            if process_entry(path, name, is_dir, &mut state) {
                 WalkState::Continue
             } else {
                 WalkState::Quit
             }
         })
     });
-}
-
-#[inline(always)]
-fn excluded(path: &Path, exclude: &[Box<[u8]>]) -> bool {
-    let name = entry_file_name_bytes(path);
-    exclude.iter().any(|e| &**e == name)
 }
