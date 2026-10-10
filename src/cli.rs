@@ -11,6 +11,12 @@ const AFTER_HELP: &str = r#"Matching modes (default: stem - strips extension, ex
   faf main.rs .            same as faf main (extension on query is ignored)
   faf -s foo /home         substr: finds foobar, foo.txt, prefoo
   faf -p Makefile /etc     exact: full filename must match literally
+  faf -e js ~             extension: same matches as faf '*.js' ~
+  faf '*.txt' ~/Documents wildcard: * matches zero or more filename bytes
+  faf 'File_Name_Index_*' ~
+  faf 'report\*.txt' ~    escape: \* matches a literal asterisk, \\ a backslash
+  Quote patterns so the shell preserves wildcards and backslash escapes.
+  Wildcards match the full filename and cannot be combined with -s, -p, or -e.
 
 Other examples:
   faf -i README .          case-insensitive stem match
@@ -41,6 +47,10 @@ pub struct Cli {
 
     #[arg(short = 'p', long)]
     pub precise: bool,
+
+    /// Match an extension (e.g. js or .js); cannot combine with -s or -p
+    #[arg(short = 'e', long = "extension", conflicts_with_all = ["substr", "precise"])]
+    pub extension: bool,
 
     /// Print every scanned file
     #[arg(short = 'v', long)]

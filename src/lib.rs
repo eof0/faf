@@ -66,8 +66,18 @@ pub fn run() -> ! {
         MatchMode::Substr
     } else if cli.precise {
         MatchMode::Precise
+    } else if cli.extension {
+        MatchMode::Extension
     } else {
         MatchMode::Standard
+    };
+
+    let target = match MatchTarget::search(&cli.target, mode, cli.ignore_case) {
+        Ok(target) => target,
+        Err(msg) => {
+            eprintln!("{prog}: {msg}");
+            std::process::exit(2);
+        }
     };
 
     // -f / -d are shorthands for --type f / --type d.
@@ -127,7 +137,7 @@ pub fn run() -> ! {
     }
 
     let config = Arc::new(WalkConfig {
-        target: MatchTarget::new(&cli.target, mode, cli.ignore_case),
+        target,
         max_depth: cli.max_depth,
         exclude,
         entry_type,
