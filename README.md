@@ -110,7 +110,46 @@ faf -p Makefile .
 
 Matches `Makefile` only.
 
-`-s` and `-p` cannot be combined.
+### extension (`-e`)
+
+~~~bash
+faf -e txt ~/Documents
+faf -e .js ~
+~~~
+
+Matches filenames ending in `.txt` or `.js`, respectively.
+`faf -e js ~` does not match `file.json` or `file.js.map`.
+Compound extensions such as `-e tar.gz` are supported.
+Add `-f` to restrict results to files; directories with matching names are included by default.
+
+### wildcards (`*`)
+
+~~~bash
+faf '*.txt' ~/Documents
+faf 'File_Name_Index_*' ~
+faf 'main*.rs' .
+faf 'a*b*c' .
+~~~
+
+An unescaped `*` selects wildcard matching against the entire filename, including its extension.
+Each `*` matches zero or more bytes; multiple stars are supported.
+`faf '*.txt' ~/Documents` returns the same matches as `faf -e txt ~/Documents`.
+Only `*` is special; `?`, brackets, and braces are literal characters.
+Wildcards do not match paths or change which directories are searched.
+
+Single-quote patterns so the shell preserves wildcards and backslash escapes:
+
+~~~bash
+faf 'report\*.txt' ~  # literal filename report*.txt
+faf 'report\\*.txt' ~ # names starting with report\ and ending in .txt
+~~~
+
+A backslash escapes the next character; `\*` matches an asterisk and `\\` matches a backslash.
+A trailing backslash is a usage error.
+Escaped targets without wildcards match the full filename by default.
+
+`-s`, `-p`, and `-e` are mutually exclusive and cannot be combined with an unescaped `*`.
+Use `faf -s foo` or `faf '*foo*'` to find names containing `foo`.
 
 ---
 
@@ -124,7 +163,7 @@ When stdout is a terminal and `-0` is not set, matches are highlighted:
 | Green | The matched part of the name |
 | Bold green | Stem in `-p` mode |
 | Yellow | Extension in stem and `-p` modes |
-| Orange | Non-matching parts of the name in `-s` mode |
+| Orange | Non-matching parts in substring, extension, and wildcard modes |
 
 `--color auto` is the default.
 Use `--color always` or `--color never` to override.
@@ -236,6 +275,8 @@ Suppresses the summary line on stderr.
 - Every core walks the tree through a work-stealing scheduler.
 - Filenames are matched as raw bytes, with no UTF-8 decoding or per-entry allocation in the matcher.
 - Substring search uses a prebuilt SIMD `memmem` finder.
+- Extension and simple wildcard searches use direct prefix or suffix comparisons.
+- Multi-star patterns are compiled once and search ordered literal segments without backtracking.
 - Non-ASCII names take a cold Unicode path only when `-i` needs it.
 - Each worker batches output into a private buffer and writes it in 64 KiB chunks, whether stdout is a terminal or a pipe.
 - When the reader closes the pipe, as in `faf -s foo / | head`, the walk stops instead of scanning the rest of the disk.

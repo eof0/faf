@@ -38,7 +38,17 @@ pub fn append_path_highlight(buf: &mut Vec<u8>, path: &Path, name: &[u8], cfg: &
     let full = path.as_os_str().as_bytes();
     paint(buf, DIM, &full[..full.len() - name.len()]);
     match cfg.target.mode {
-        MatchMode::Substr => highlight_substr(buf, name, &cfg.target),
+        MatchMode::Substr | MatchMode::GlobContains => highlight_substr(buf, name, &cfg.target),
+        MatchMode::Extension | MatchMode::Prefix | MatchMode::Suffix | MatchMode::Glob => {
+            let mut last = 0;
+            cfg.target.glob_spans(name, |start, end| {
+                paint(buf, ORANGE, &name[last..start]);
+                paint(buf, GREEN, &name[start..end]);
+                last = end;
+            });
+            paint(buf, ORANGE, &name[last..]);
+        }
+        MatchMode::All => paint(buf, GREEN, name),
         MatchMode::Precise | MatchMode::Standard => {
             let stem = stem_bytes(name).len();
             let color = if cfg.target.mode == MatchMode::Precise {

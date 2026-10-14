@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Add extension matching (-e) and wildcard searches with backslash escapes
+
 ### Changed
 
 - **Performance** - further hot-path trimming without changing match semantics:

@@ -6,6 +6,12 @@ pub enum MatchMode {
     Substr,
     Precise,
     Standard,
+    Extension,
+    Prefix,
+    Suffix,
+    Glob,
+    GlobContains,
+    All,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
